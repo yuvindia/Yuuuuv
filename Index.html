@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#120a24">
+<title>yuuuuv</title>
+<style>
+*{box-sizing:border-box;margin:0}
+body{font-family:system-ui,sans-serif;background:#120a24;color:#f1eaff;height:100dvh;display:flex;flex-direction:column}
+#app{flex:1;display:flex;flex-direction:column;min-height:0;max-width:600px;width:100%;margin:auto}
+header{padding:14px 16px;font-weight:700;font-size:20px;background:linear-gradient(90deg,#7c3aed,#c026d3);display:flex;align-items:center;gap:10px}
+header span{flex:1}
+header button{background:#ffffff30;color:#fff;border:0;border-radius:10px;padding:6px 10px;font-size:15px}
+.pad{padding:16px;overflow:auto;flex:1}
+input,select{width:100%;padding:12px;border-radius:12px;border:1px solid #3b2a66;background:#1d1238;color:#fff;font-size:16px;margin-bottom:10px}
+.btn{width:100%;padding:12px;border:0;border-radius:12px;background:#a855f7;color:#fff;font-size:16px;font-weight:600;margin-bottom:10px}
+.link{background:none;border:0;color:#d8b4fe;width:100%;padding:8px}
+.row{padding:14px;border-radius:14px;background:#1d1238;margin-bottom:8px;cursor:pointer}
+h3{margin:14px 0 8px;font-size:15px;color:#d8b4fe}
+#msgs{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:6px}
+.m{max-width:78%;padding:9px 13px;border-radius:16px;background:#2a1b4d;word-wrap:break-word}
+.me{align-self:flex-end;background:linear-gradient(135deg,#7c3aed,#c026d3)}
+.m small{display:block;font-size:10px;opacity:.6;margin-top:2px}
+#bar{display:flex;gap:6px;padding:8px;padding-bottom:max(8px,env(safe-area-inset-bottom));background:#1d1238}
+#bar input{margin:0;flex:1}
+#bar button{border:0;border-radius:12px;background:#a855f7;color:#fff;padding:0 14px;font-size:18px}
+#emo{display:none;flex-wrap:wrap;gap:4px;padding:8px;background:#1d1238;max-height:140px;overflow:auto}
+#emo span{font-size:26px;padding:3px;cursor:pointer}
+.err{color:#fda4af;font-size:14px;margin-bottom:8px}
+</style></head>
+<body><div id="app"></div>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getFirestore,doc,setDoc,getDoc,getDocs,collection,query,where,addDoc,onSnapshot,orderBy,deleteDoc} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// ====== PASTE YOUR FIREBASE CONFIG HERE ======
+const firebaseConfig = {
+  apiKey: "PASTE_HERE",
+  authDomain: "PASTE_HERE",
+  projectId: "PASTE_HERE",
+  storageBucket: "PASTE_HERE",
+  messagingSenderId: "PASTE_HERE",
+  appId: "PASTE_HERE"
+};
+// =============================================
+
+const fb = initializeApp(firebaseConfig), auth = getAuth(fb), db = getFirestore(fb);
+const $ = s => document.querySelector(s), app = $("#app");
+const EMOJIS = "😀😁😂🤣😊😍😘😎🤩🥳😢😭😡🤔🙄😴🤗😇🥰😜🤪😏😬😱🤯🥶🥵🤮👍👎👏🙌🙏💪👀💯🔥✨⭐🎉🎂❤️🧡💛💚💙💜🖤💔💕😈👻💀🤝✌️🤞👋🍕🍔🍟🍿🍩☕🎮🎵⚽🌹🌈☀️🌙".match(/\p{Extended_Pictographic}(\uFE0F)?/gu);
+const KEEP = {"0":"Keep forever","60000":"Don't store (1 min)","3600000":"1 hour","86400000":"24 hours","604800000":"7 days"};
+let me = null, unsub = null, timer = null;
+let keep = localStorage.getItem("keep") || "0";
+
+onAuthStateChanged(auth, async u => {
+  if (!u) { me = null; return authView(); }
+  const s = await getDoc(doc(db, "users", u.uid));
+  me = s.exists() ? { uid: u.uid, ...s.data() } : { uid: u.uid, username: "" };
+  if (s.exists() && s.data().keep) { keep = s.data().keep; localStorage.setItem("keep", keep); }
+  homeView();
+});
+
+function authView(msg = "") {
+  clear();
+  app.innerHTML = `<header><span>yuuuuv 💜</span></header><div class="pad">
+  <input id="u" placeholder="Username (new accounts)"><input id="e" type="email" placeholder="Email">
+  <input id="p" type="password" placeholder="Password (6+ characters)">
+  <div class="err">${msg}</div>
+  <button class="btn" id="in">Log in</button><button class="link" id="up">Create account</button></div>`;
+  $("#in").onclick = async () => { try { await signInWithEmailAndPassword(auth, $("#e").value, $("#p").value); } catch (e) { authView(e.message); } };
+  $("#up").onclick = async () => {
+    const name = $("#u").value.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+    if (name.length < 3) return authView("Username needs 3+ letters/numbers");
+    try {
+      const taken = await getDocs(query(collection(db, "users"), where("username", "==", name)));
+      if (!taken.empty) return authView("Username taken");
+      const c = await createUserWithEmailAndPassword(auth, $("#e").value, $("#p").value);
+      await setDoc(doc(db, "users", c.user.uid), { username: name, keep });
+      me = { uid: c.user.uid, username: name }; homeView();
+    } catch (e) { authView(e.message); }
+  };
+}
+
+async function homeView(msg = "") {
+  clear();
+  app.innerHTML = `<header><span>yuuuuv 💜</span><button id="set">⚙️</button><button id="out">Exit</button></header>
+  <div class="pad"><h3>Add a friend by username</h3>
+  <input id="f" placeholder="@username"><button class="btn" id="add">Add friend</button><div class="err" id="m">${msg}</div>
+  <h3>Your friends</h3><div id="list">Loading…</div></div>`;
+  $("#out").onclick = () => signOut(auth);
+  $("#set").onclick = settingsView;
+  $("#add").onclick = addFriend;
+  const fs = await getDocs(collection(db, "users", me.uid, "friends"));
+  $("#list").innerHTML = fs.empty ? "No friends yet 👋" : "";
+  fs.forEach(d => {
+    const r = document.createElement("div"); r.className = "row"; r.textContent = "💬 " + d.data().username;
+    r.onclick = () => chatView(d.id, d.data().username); $("#list").append(r);
+  });
+}
+
+async function addFriend() {
+  const name = $("#f").value.trim().toLowerCase().replace("@", "");
+  const r = await getDocs(query(collection(db, "users"), where("username", "==", name)));
+  if (r.empty) return homeView("User not found");
+  const f = r.docs[0];
+  if (f.id === me.uid) return homeView("That's you 😄");
+  await setDoc(doc(db, "users", me.uid, "friends", f.id), { username: f.data().username });
+  await setDoc(doc(db, "users", f.id, "friends", me.uid), { username: me.username });
+  homeView("Added " + f.data().username + " ✅");
+}
+
+function settingsView() {
+  clear();
+  app.innerHTML = `<header><button id="b">←</button><span>Settings</span></header><div class="pad">
+  <h3>Save my messages for</h3><select id="k">${Object.entries(KEEP).map(([v, t]) => `<option value="${v}" ${v === keep ? "selected" : ""}>${t}</option>`).join("")}</select>
+  <p style="opacity:.7;font-size:14px">Messages you send disappear after this time.</p></div>`;
+  $("#b").onclick = () => homeView();
+  $("#k").onchange = async e => {
+    keep = e.target.value; localStorage.setItem("keep", keep);
+    await setDoc(doc(db, "users", me.uid), { username: me.username, keep });
+  };
+}
+
+function chatView(fid, fname) {
+  clear();
+  const cid = [me.uid, fid].sort().join("_"), col = collection(db, "chats", cid, "messages");
+  app.innerHTML = `<header><button id="b">←</button><span>${fname}</span></header><div id="msgs"></div>
+  <div id="emo">${EMOJIS.map(e => `<span>${e}</span>`).join("")}</div>
+  <div id="bar"><button id="eb">😊</button><input id="t" placeholder="Message…"><button id="s">➤</button></div>`;
+  $("#b").onclick = () => homeView();
+  $("#eb").onclick = () => { const e = $("#emo"); e.style.display = e.style.display === "flex" ? "none" : "flex"; };
+  $("#emo").onclick = e => { if (e.target.tagName === "SPAN") $("#t").value += e.target.textContent; };
+  const send = async () => {
+    const text = $("#t").value.trim(); if (!text) return; $("#t").value = "";
+    const ttl = +keep;
+    await addDoc(col, { from: me.uid, text, ts: Date.now(), expireAt: ttl ? Date.now() + ttl : 0 });
+  };
+  $("#s").onclick = send; $("#t").onkeydown = e => { if (e.key === "Enter") send(); };
+  let docs = [];
+  const draw = () => {
+    const now = Date.now(), box = $("#msgs"); if (!box) return;
+    box.innerHTML = "";
+    docs.forEach(d => {
+      const m = d.data();
+      if (m.expireAt && m.expireAt < now) { if (m.from === me.uid) deleteDoc(d.ref); return; }
+      const el = document.createElement("div"); el.className = "m" + (m.from === me.uid ? " me" : "");
+      el.textContent = m.text;
+      const s = document.createElement("small"); s.textContent = new Date(m.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      el.append(s); box.append(el);
+    });
+    box.scrollTop = box.scrollHeight;
+  };
+  unsub = onSnapshot(query(col, orderBy("ts")), snap => { docs = snap.docs; draw(); });
+  timer = setInterval(draw, 5000);
+}
+
+function clear() { if (unsub) unsub(); unsub = null; clearInterval(timer); }
+</script></body></html>
