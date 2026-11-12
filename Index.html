@@ -34,16 +34,14 @@ import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase
 import {getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {getFirestore,doc,setDoc,getDoc,getDocs,collection,query,where,addDoc,onSnapshot,orderBy,deleteDoc} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-// ====== PASTE YOUR FIREBASE CONFIG HERE ======
 const firebaseConfig = {
-  apiKey: "PASTE_HERE",
-  authDomain: "PASTE_HERE",
-  projectId: "PASTE_HERE",
-  storageBucket: "PASTE_HERE",
-  messagingSenderId: "PASTE_HERE",
-  appId: "PASTE_HERE"
+  apiKey: "AIzaSyCrJW81Qzk5DvVsLdRtqnhK-GB2Xc5tf48",
+  authDomain: "yuuuuv-a3103.firebaseapp.com",
+  projectId: "yuuuuv-a3103",
+  storageBucket: "yuuuuv-a3103.firebasestorage.app",
+  messagingSenderId: "488926593717",
+  appId: "1:488926593717:web:f904097e31326011b0f4fc"
 };
-// =============================================
 
 const fb = initializeApp(firebaseConfig), auth = getAuth(fb), db = getFirestore(fb);
 const $ = s => document.querySelector(s), app = $("#app");
