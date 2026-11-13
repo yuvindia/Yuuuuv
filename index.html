@@ -50,17 +50,29 @@ const EMO=Array.from("😀😁😂🤣😊😍😘😎🤩🥳😢😭😡🤔�
 const KEEP={"0":"Keep forever","60000":"Don't store (1 min)","3600000":"1 hour","86400000":"24 hours","604800000":"7 days"};
 let me=null,prof=null,tab="chats",chan=null,tmr=null;
 function leave(){if(chan){sb.removeChannel(chan);chan=null}clearInterval(tmr)}
-sb.auth.onAuthStateChange(async(_e,s)=>{
+
+sb.auth.onAuthStateChange((_e,s)=>{
  if(!s){me=null;return authView()}
  if(me&&me.id===s.user.id)return;
- me=s.user;await loadProf();main();
+ me=s.user;
+ setTimeout(async()=>{
+  try{await loadProf();main()}
+  catch(err){authView("Could not load profile: "+(err.message||err))}
+ },0);
 });
+
 async function loadProf(){
- let {data}=await sb.from("profiles").select("*").eq("id",me.id).maybeSingle();
- if(!data){const name=localStorage.getItem("pending")||("user"+Math.random().toString(36).slice(2,7));
-  const r=await sb.from("profiles").insert({id:me.id,username:name}).select().single();data=r.data}
- prof=data||{id:me.id,username:"me",keep_ms:0};
+ let {data,error}=await sb.from("profiles").select("*").eq("id",me.id).maybeSingle();
+ if(error)throw error;
+ if(!data){
+  const name=localStorage.getItem("pending")||("user"+Math.random().toString(36).slice(2,7));
+  const r=await sb.from("profiles").insert({id:me.id,username:name}).select().single();
+  if(r.error)throw r.error;
+  data=r.data;
+ }
+ prof=data;
 }
+
 function authView(msg=""){
  leave();
  app.innerHTML=`<header><span>yuuuuv 💜</span></header><div class="pad"><input id="u" placeholder="Username (new accounts)"><input id="e" type="email" placeholder="Email"><input id="p" type="password" placeholder="Password (6+ characters)"><div class="err">${esc(msg)}</div><button class="btn" id="in">Log in</button><button class="link" id="up">Create account</button></div>`;
@@ -76,12 +88,14 @@ function authView(msg=""){
   if(!data.session)authView("Check your email to confirm, then log in.");
  };
 }
+
 function main(){
  leave();
  app.innerHTML=`<div id="v" style="flex:1;display:flex;flex-direction:column;min-height:0"></div><nav>${[["chats","💬","Chats"],["snaps","📸","Snaps"],["glows","✨","Glows"],["find","🔍","Find"],["me","⚙️","You"]].map(([k,i,n])=>`<button data-t="${k}" class="${tab===k?"on":""}">${i}<small>${n}</small></button>`).join("")}</nav>`;
  document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{tab=b.dataset.t;main()});
  ({chats:chatsView,snaps:snapsView,glows:glowsView,find:findView,me:meView})[tab]();
 }
+
 async function friends(){
  const {data}=await sb.from("friends").select("*").eq("status","accepted").or(`requester.eq.${me.id},addressee.eq.${me.id}`);
  const ids=(data||[]).map(r=>r.requester===me.id?r.addressee:r.requester);
@@ -89,30 +103,36 @@ async function friends(){
  const {data:p}=await sb.from("profiles").select("id,username").in("id",ids);
  return p||[];
 }
+
 function pick(cb,cam){const i=document.createElement("input");i.type="file";i.accept="image/*";if(cam)i.setAttribute("capture","environment");i.onchange=()=>i.files[0]&&cb(i.files[0]);i.click()}
+
 async function upload(f){
  const path=`${me.id}/${Date.now()}_${Math.random().toString(36).slice(2,7)}.jpg`;
  const {error}=await sb.storage.from("media").upload(path,f,{contentType:f.type});
  if(error)throw error;
  return sb.storage.from("media").getPublicUrl(path).data.publicUrl;
 }
+
 async function sendSnap(p){
  pick(async f=>{try{const url=await upload(f);
   await sb.from("messages").insert({sender:me.id,receiver:p.id,kind:"snap",media_url:url,body:"snap",expires_at:new Date(Date.now()+864e5).toISOString()});
   alert("Snap sent to "+p.username+" 📸")}catch(e){alert(e.message)}},true);
 }
+
 async function chatsView(){
  $("#v").innerHTML=`<header><span>Chats</span></header><div class="pad" id="l">Loading…</div>`;
  const f=await friends();
  $("#l").innerHTML=f.length?"":"No friends yet. Tap 🔍 Find to add some 👋";
  f.forEach(p=>{const r=document.createElement("div");r.className="row";r.textContent="💬 "+p.username;r.onclick=()=>chatView(p);$("#l").append(r)});
 }
+
 async function snapsView(){
  $("#v").innerHTML=`<header><span>Snaps 📸</span></header><div class="pad"><p style="opacity:.7;margin-bottom:10px">Tap 📸 to send a view-once snap. Open snaps inside the chat.</p><div id="l">Loading…</div></div>`;
  const f=await friends();
  $("#l").innerHTML=f.length?"":"Add friends first 👋";
  f.forEach(p=>{const r=document.createElement("div");r.className="row";const s=document.createElement("span");s.textContent=p.username;const b=document.createElement("button");b.className="sm";b.textContent="📸 Snap";b.onclick=()=>sendSnap(p);r.append(s,b);$("#l").append(r)});
 }
+
 function chatView(p){
  leave();
  app.innerHTML=`<header><button id="b">←</button><span>${esc(p.username)}</span></header><div id="msgs"></div><div id="emo">${EMO.map(e=>`<span>${e}</span>`).join("")}</div><div id="bar"><button id="eb">😊</button><button id="cb">📷</button><input id="t" placeholder="Message…"><button id="s">➤</button></div>`;
@@ -140,11 +160,13 @@ function chatView(p){
  chan=sb.channel("m"+Date.now()).on("postgres_changes",{event:"*",schema:"public",table:"messages"},load).subscribe();
  tmr=setInterval(load,15000);load();
 }
+
 function viewSnap(m){
  const o=document.createElement("div");o.id="ov";const i=document.createElement("img");i.src=m.media_url;o.append(i);document.body.append(o);
  const close=()=>{o.remove();sb.from("messages").delete().eq("id",m.id)};
  o.onclick=close;setTimeout(()=>o.isConnected&&close(),8000);
 }
+
 async function glowsView(){
  $("#v").innerHTML=`<header><span>Glows ✨</span></header><div class="pad"><button class="btn" id="ag">＋ Add a Glow (lasts 24h)</button><div id="g">Loading…</div></div>`;
  $("#ag").onclick=()=>pick(async f=>{try{const url=await upload(f);await sb.from("glows").insert({owner:me.id,media_url:url});glowsView()}catch(e){alert(e.message)}},false);
@@ -158,6 +180,7 @@ async function glowsView(){
   const im=document.createElement("img");im.src=g.media_url;c.append(t,s,im);$("#g").append(c);
  });
 }
+
 async function findView(){
  $("#v").innerHTML=`<header><span>Find friends</span></header><div class="pad"><input id="q" placeholder="Search username"><div id="r"></div><h3>Requests for you</h3><div id="rq">Loading…</div></div>`;
  $("#q").oninput=async()=>{
@@ -185,6 +208,7 @@ async function findView(){
   r.append(s,b);$("#rq").append(r);
  });
 }
+
 function meView(){
  $("#v").innerHTML=`<header><span>You</span></header><div class="pad"><h3>Username</h3><div class="row">@${esc(prof.username)}</div><h3>Save my messages for</h3><select id="k">${Object.entries(KEEP).map(([v,t])=>`<option value="${v}" ${String(prof.keep_ms||0)===v?"selected":""}>${t}</option>`).join("")}</select><button class="btn" id="lo">Log out</button></div>`;
  $("#k").onchange=async e=>{prof.keep_ms=+e.target.value;await sb.from("profiles").update({keep_ms:prof.keep_ms}).eq("id",me.id)};
