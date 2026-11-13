@@ -43,7 +43,7 @@ const firebaseConfig = {
   appId: "1:488926593717:web:f904097e31326011b0f4fc"
 };
 
-const fb = initializeApp(firebaseConfig), auth = getAuth(fb), db = getFirestore(fb, "default");
+const fb = initializeApp(firebaseConfig), auth = getAuth(fb), db = getFirestore(fb);
 const $ = s => document.querySelector(s), app = $("#app");
 const EMOJIS = "😀😁😂🤣😊😍😘😎🤩🥳😢😭😡🤔🙄😴🤗😇🥰😜🤪😏😬😱🤯🥶🥵🤮👍👎👏🙌🙏💪👀💯🔥✨⭐🎉🎂❤️🧡💛💚💙💜🖤💔💕😈👻💀🤝✌️🤞👋🍕🍔🍟🍿🍩☕🎮🎵⚽🌹🌈☀️🌙".match(/\p{Extended_Pictographic}(\uFE0F)?/gu);
 const KEEP = {"0":"Keep forever","60000":"Don't store (1 min)","3600000":"1 hour","86400000":"24 hours","604800000":"7 days"};
