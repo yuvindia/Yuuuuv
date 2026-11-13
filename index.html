@@ -16,9 +16,14 @@ input,select{width:100%;padding:12px;border-radius:12px;border:1px solid #3b2a66
 .btn{width:100%;padding:12px;border:0;border-radius:12px;background:#a855f7;color:#fff;font-size:16px;font-weight:600;margin-bottom:10px}
 .sm{border:0;border-radius:10px;background:#a855f7;color:#fff;padding:8px 12px;font-size:15px}
 .link{background:none;border:0;color:#d8b4fe;width:100%;padding:8px}
-.row{padding:14px;border-radius:14px;background:#1d1238;margin-bottom:8px;display:flex;align-items:center;gap:8px}
-.row span{flex:1}
+.row{padding:12px;border-radius:14px;background:#1d1238;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.row .grow{flex:1;min-width:0}
+.row .grow small{display:block;opacity:.6;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 h3{margin:14px 0 8px;font-size:15px;color:#d8b4fe}
+.av{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#c026d3);display:flex;align-items:center;justify-content:center;font-weight:700;overflow:hidden;flex:none;color:#fff}
+.av img{width:100%;height:100%;object-fit:cover}
+.av.big{width:110px;height:110px;font-size:44px;margin:6px auto 12px}
+.av.mini{width:30px;height:30px;font-size:14px}
 #msgs{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:6px}
 .m{max-width:78%;padding:9px 13px;border-radius:16px;background:#2a1b4d;word-wrap:break-word}
 .me{align-self:flex-end;background:linear-gradient(135deg,#7c3aed,#c026d3)}
@@ -34,7 +39,8 @@ nav button{flex:1;background:none;border:0;color:#9d8bc4;padding:8px 0;font-size
 nav button.on{color:#fff}
 nav small{font-size:11px}
 .card{background:#1d1238;border-radius:14px;padding:10px;margin-bottom:12px}
-.card img{width:100%;border-radius:10px;margin-top:6px}
+.card img.pic{width:100%;border-radius:10px;margin-top:6px}
+.card .top{display:flex;align-items:center;gap:8px}
 #ov{position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center;z-index:9}
 #ov img{max-width:100%;max-height:100%}
 </style></head>
@@ -50,6 +56,13 @@ const EMO=Array.from("😀😁😂🤣😊😍😘😎🤩🥳😢😭😡🤔�
 const KEEP={"0":"Keep forever","60000":"Don't store (1 min)","3600000":"1 hour","86400000":"24 hours","604800000":"7 days"};
 let me=null,prof=null,tab="chats",chan=null,tmr=null;
 function leave(){if(chan){sb.removeChannel(chan);chan=null}clearInterval(tmr)}
+
+function av(p,cls){
+ const d=document.createElement("div");d.className="av"+(cls?" "+cls:"");
+ if(p&&p.avatar_url){const i=document.createElement("img");i.src=p.avatar_url;d.append(i)}
+ else d.textContent=((p&&p.username)||"?")[0].toUpperCase();
+ return d;
+}
 
 sb.auth.onAuthStateChange((_e,s)=>{
  if(!s){me=null;return authView()}
@@ -91,7 +104,7 @@ function authView(msg=""){
 
 function main(){
  leave();
- app.innerHTML=`<div id="v" style="flex:1;display:flex;flex-direction:column;min-height:0"></div><nav>${[["chats","💬","Chats"],["snaps","📸","Snaps"],["glows","✨","Glows"],["find","🔍","Find"],["me","⚙️","You"]].map(([k,i,n])=>`<button data-t="${k}" class="${tab===k?"on":""}">${i}<small>${n}</small></button>`).join("")}</nav>`;
+ app.innerHTML=`<div id="v" style="flex:1;display:flex;flex-direction:column;min-height:0"></div><nav>${[["chats","💬","Chats"],["snaps","📸","Snaps"],["glows","✨","Glows"],["find","🔍","Find"],["me","👤","Profile"]].map(([k,i,n])=>`<button data-t="${k}" class="${tab===k?"on":""}">${i}<small>${n}</small></button>`).join("")}</nav>`;
  document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{tab=b.dataset.t;main()});
  ({chats:chatsView,snaps:snapsView,glows:glowsView,find:findView,me:meView})[tab]();
 }
@@ -100,7 +113,7 @@ async function friends(){
  const {data}=await sb.from("friends").select("*").eq("status","accepted").or(`requester.eq.${me.id},addressee.eq.${me.id}`);
  const ids=(data||[]).map(r=>r.requester===me.id?r.addressee:r.requester);
  if(!ids.length)return[];
- const {data:p}=await sb.from("profiles").select("id,username").in("id",ids);
+ const {data:p}=await sb.from("profiles").select("id,username,bio,avatar_url").in("id",ids);
  return p||[];
 }
 
@@ -119,23 +132,37 @@ async function sendSnap(p){
   alert("Snap sent to "+p.username+" 📸")}catch(e){alert(e.message)}},true);
 }
 
+function personRow(p,btnText,onBtn,onRow){
+ const r=document.createElement("div");r.className="row";
+ r.append(av(p));
+ const g=document.createElement("div");g.className="grow";
+ const n=document.createElement("div");n.textContent=p.username;g.append(n);
+ if(p.bio){const s=document.createElement("small");s.textContent=p.bio;g.append(s)}
+ r.append(g);
+ if(onRow){r.style.cursor="pointer";g.onclick=onRow}
+ if(btnText){const b=document.createElement("button");b.className="sm";b.textContent=btnText;b.onclick=()=>onBtn(b);r.append(b)}
+ return r;
+}
+
 async function chatsView(){
  $("#v").innerHTML=`<header><span>Chats</span></header><div class="pad" id="l">Loading…</div>`;
  const f=await friends();
  $("#l").innerHTML=f.length?"":"No friends yet. Tap 🔍 Find to add some 👋";
- f.forEach(p=>{const r=document.createElement("div");r.className="row";r.textContent="💬 "+p.username;r.onclick=()=>chatView(p);$("#l").append(r)});
+ f.forEach(p=>$("#l").append(personRow(p,null,null,()=>chatView(p))));
 }
 
 async function snapsView(){
- $("#v").innerHTML=`<header><span>Snaps 📸</span></header><div class="pad"><p style="opacity:.7;margin-bottom:10px">Tap 📸 to send a view-once snap. Open snaps inside the chat.</p><div id="l">Loading…</div></div>`;
+ $("#v").innerHTML=`<header><span>Snaps 📸</span></header><div class="pad"><p style="opacity:.7;margin-bottom:10px">Tap 📸 Snap to send a view-once photo. Open received snaps inside the chat.</p><div id="l">Loading…</div></div>`;
  const f=await friends();
  $("#l").innerHTML=f.length?"":"Add friends first 👋";
- f.forEach(p=>{const r=document.createElement("div");r.className="row";const s=document.createElement("span");s.textContent=p.username;const b=document.createElement("button");b.className="sm";b.textContent="📸 Snap";b.onclick=()=>sendSnap(p);r.append(s,b);$("#l").append(r)});
+ f.forEach(p=>$("#l").append(personRow(p,"📸 Snap",()=>sendSnap(p))));
 }
 
 function chatView(p){
  leave();
- app.innerHTML=`<header><button id="b">←</button><span>${esc(p.username)}</span></header><div id="msgs"></div><div id="emo">${EMO.map(e=>`<span>${e}</span>`).join("")}</div><div id="bar"><button id="eb">😊</button><button id="cb">📷</button><input id="t" placeholder="Message…"><button id="s">➤</button></div>`;
+ app.innerHTML=`<header><button id="b">←</button><span id="hn"></span></header><div id="msgs"></div><div id="emo">${EMO.map(e=>`<span>${e}</span>`).join("")}</div><div id="bar"><button id="eb">😊</button><button id="cb">📷</button><input id="t" placeholder="Message…"><button id="s">➤</button></div>`;
+ const hn=$("#hn");hn.style.display="flex";hn.style.alignItems="center";hn.style.gap="8px";
+ hn.append(av(p,"mini"));const nm=document.createElement("span");nm.textContent=p.username;hn.append(nm);
  $("#b").onclick=main;
  $("#eb").onclick=()=>{const e=$("#emo");e.style.display=e.style.display==="flex"?"none":"flex"};
  $("#emo").onclick=e=>{if(e.target.tagName==="SPAN")$("#t").value+=e.target.textContent};
@@ -170,14 +197,17 @@ function viewSnap(m){
 async function glowsView(){
  $("#v").innerHTML=`<header><span>Glows ✨</span></header><div class="pad"><button class="btn" id="ag">＋ Add a Glow (lasts 24h)</button><div id="g">Loading…</div></div>`;
  $("#ag").onclick=()=>pick(async f=>{try{const url=await upload(f);await sb.from("glows").insert({owner:me.id,media_url:url});glowsView()}catch(e){alert(e.message)}},false);
- const {data}=await sb.from("glows").select("*,profiles(username)").order("created_at",{ascending:false});
+ const {data}=await sb.from("glows").select("*,profiles(username,avatar_url)").order("created_at",{ascending:false});
  $("#g").innerHTML=(data&&data.length)?"":"No Glows yet ✨";
  (data||[]).forEach(g=>{
   const c=document.createElement("div");c.className="card";
-  const t=document.createElement("b");t.textContent=(g.profiles&&g.profiles.username)||"friend";
+  const top=document.createElement("div");top.className="top";
+  const pr=g.profiles||{username:"friend"};
+  const t=document.createElement("b");t.textContent=pr.username;
   const h=Math.max(0,Math.round((new Date(g.expires_at)-Date.now())/36e5));
-  const s=document.createElement("small");s.textContent="  · "+h+"h left";
-  const im=document.createElement("img");im.src=g.media_url;c.append(t,s,im);$("#g").append(c);
+  const s=document.createElement("small");s.style.opacity=".6";s.textContent=h+"h left";
+  top.append(av(pr,"mini"),t,s);
+  const im=document.createElement("img");im.className="pic";im.src=g.media_url;c.append(top,im);$("#g").append(c);
  });
 }
 
@@ -186,31 +216,36 @@ async function findView(){
  $("#q").oninput=async()=>{
   const q=$("#q").value.trim().toLowerCase().replace(/[^a-z0-9_]/g,"");
   if(q.length<2){$("#r").innerHTML="";return}
-  const {data}=await sb.from("profiles").select("id,username").ilike("username","%"+q+"%").neq("id",me.id).limit(10);
+  const {data}=await sb.from("profiles").select("id,username,bio,avatar_url").ilike("username","%"+q+"%").neq("id",me.id).limit(10);
   $("#r").innerHTML="";
-  (data||[]).forEach(p=>{
-   const r=document.createElement("div");r.className="row";const s=document.createElement("span");s.textContent=p.username;
-   const b=document.createElement("button");b.className="sm";b.textContent="Add";
-   b.onclick=async()=>{const {error}=await sb.from("friends").insert({requester:me.id,addressee:p.id});b.textContent=error?"Already":"Sent ✅"};
-   r.append(s,b);$("#r").append(r);
-  });
+  (data||[]).forEach(p=>$("#r").append(personRow(p,"Add",async b=>{const {error}=await sb.from("friends").insert({requester:me.id,addressee:p.id});b.textContent=error?"Already":"Sent ✅"})));
  };
  const {data}=await sb.from("friends").select("*").eq("addressee",me.id).eq("status","pending");
  const ids=(data||[]).map(r=>r.requester);
  $("#rq").innerHTML=ids.length?"":"No requests";
  if(!ids.length)return;
- const {data:ps}=await sb.from("profiles").select("id,username").in("id",ids);
+ const {data:ps}=await sb.from("profiles").select("id,username,bio,avatar_url").in("id",ids);
  (data||[]).forEach(fr=>{
-  const p=(ps||[]).find(x=>x.id===fr.requester);
-  const r=document.createElement("div");r.className="row";const s=document.createElement("span");s.textContent=p?p.username:"user";
-  const b=document.createElement("button");b.className="sm";b.textContent="Accept";
-  b.onclick=async()=>{await sb.from("friends").update({status:"accepted"}).eq("id",fr.id);findView()};
-  r.append(s,b);$("#rq").append(r);
+  const p=(ps||[]).find(x=>x.id===fr.requester)||{username:"user"};
+  $("#rq").append(personRow(p,"Accept",async()=>{await sb.from("friends").update({status:"accepted"}).eq("id",fr.id);findView()}));
  });
 }
 
 function meView(){
- $("#v").innerHTML=`<header><span>You</span></header><div class="pad"><h3>Username</h3><div class="row">@${esc(prof.username)}</div><h3>Save my messages for</h3><select id="k">${Object.entries(KEEP).map(([v,t])=>`<option value="${v}" ${String(prof.keep_ms||0)===v?"selected":""}>${t}</option>`).join("")}</select><button class="btn" id="lo">Log out</button></div>`;
+ $("#v").innerHTML=`<header><span>Profile</span></header><div class="pad"><div id="pa" style="text-align:center"></div><button class="link" id="cp">Change photo</button><h3>Username</h3><div class="row">@${esc(prof.username)}</div><h3>Bio</h3><input id="bio" maxlength="100" placeholder="Write something about you ✨"><button class="btn" id="sb">Save bio</button><h3>Save my messages for</h3><select id="k">${Object.entries(KEEP).map(([v,t])=>`<option value="${v}" ${String(prof.keep_ms||0)===v?"selected":""}>${t}</option>`).join("")}</select><button class="btn" id="lo" style="background:#3b2a66">Log out</button></div>`;
+ $("#pa").append(av(prof,"big"));
+ $("#bio").value=prof.bio||"";
+ $("#cp").onclick=()=>pick(async f=>{
+  try{const url=await upload(f);
+   const {error}=await sb.from("profiles").update({avatar_url:url}).eq("id",me.id);
+   if(error)throw error;prof.avatar_url=url;meView()}
+  catch(e){alert(e.message)}},false);
+ $("#sb").onclick=async()=>{
+  const bio=$("#bio").value.trim();
+  const {error}=await sb.from("profiles").update({bio}).eq("id",me.id);
+  if(error)return alert(error.message);
+  prof.bio=bio;$("#sb").textContent="Saved ✅";
+ };
  $("#k").onchange=async e=>{prof.keep_ms=+e.target.value;await sb.from("profiles").update({keep_ms:prof.keep_ms}).eq("id",me.id)};
  $("#lo").onclick=()=>sb.auth.signOut();
 }
