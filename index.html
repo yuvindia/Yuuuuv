@@ -14,147 +14,180 @@ header button{background:#ffffff30;color:#fff;border:0;border-radius:10px;paddin
 .pad{padding:16px;overflow:auto;flex:1}
 input,select{width:100%;padding:12px;border-radius:12px;border:1px solid #3b2a66;background:#1d1238;color:#fff;font-size:16px;margin-bottom:10px}
 .btn{width:100%;padding:12px;border:0;border-radius:12px;background:#a855f7;color:#fff;font-size:16px;font-weight:600;margin-bottom:10px}
+.sm{border:0;border-radius:10px;background:#a855f7;color:#fff;padding:8px 12px;font-size:15px}
 .link{background:none;border:0;color:#d8b4fe;width:100%;padding:8px}
-.row{padding:14px;border-radius:14px;background:#1d1238;margin-bottom:8px;cursor:pointer}
+.row{padding:14px;border-radius:14px;background:#1d1238;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.row span{flex:1}
 h3{margin:14px 0 8px;font-size:15px;color:#d8b4fe}
 #msgs{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:6px}
 .m{max-width:78%;padding:9px 13px;border-radius:16px;background:#2a1b4d;word-wrap:break-word}
 .me{align-self:flex-end;background:linear-gradient(135deg,#7c3aed,#c026d3)}
 .m small{display:block;font-size:10px;opacity:.6;margin-top:2px}
-#bar{display:flex;gap:6px;padding:8px;padding-bottom:max(8px,env(safe-area-inset-bottom));background:#1d1238}
+#bar{display:flex;gap:6px;padding:8px;background:#1d1238}
 #bar input{margin:0;flex:1}
-#bar button{border:0;border-radius:12px;background:#a855f7;color:#fff;padding:0 14px;font-size:18px}
+#bar button{border:0;border-radius:12px;background:#a855f7;color:#fff;padding:0 12px;font-size:18px}
 #emo{display:none;flex-wrap:wrap;gap:4px;padding:8px;background:#1d1238;max-height:140px;overflow:auto}
-#emo span{font-size:26px;padding:3px;cursor:pointer}
+#emo span{font-size:26px;padding:3px}
 .err{color:#fda4af;font-size:14px;margin-bottom:8px}
+nav{display:flex;background:#1d1238;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;border:0;color:#9d8bc4;padding:8px 0;font-size:20px;display:flex;flex-direction:column;align-items:center}
+nav button.on{color:#fff}
+nav small{font-size:11px}
+.card{background:#1d1238;border-radius:14px;padding:10px;margin-bottom:12px}
+.card img{width:100%;border-radius:10px;margin-top:6px}
+#ov{position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center;z-index:9}
+#ov img{max-width:100%;max-height:100%}
 </style></head>
 <body><div id="app">Loading…</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.js"></script>
 <script>
-window.addEventListener("error", e => { document.getElementById("app").innerHTML = '<p style="padding:16px;color:#fda4af">Error: ' + e.message + '</p>'; });
-window.addEventListener("unhandledrejection", e => { document.getElementById("app").innerHTML = '<p style="padding:16px;color:#fda4af">Error: ' + (e.reason && e.reason.message || e.reason) + '</p>'; });
-</script>
-<script type="module">
-import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import {getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,onAuthStateChanged,signOut} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import {getFirestore,doc,setDoc,getDoc,getDocs,collection,query,where,addDoc,onSnapshot,orderBy,deleteDoc} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyCrJW81Qzk5DvVsLdRtqnhK-GB2Xc5tf48",
-  authDomain: "yuuuuv-a3103.firebaseapp.com",
-  projectId: "yuuuuv-a3103",
-  storageBucket: "yuuuuv-a3103.firebasestorage.app",
-  messagingSenderId: "488926593717",
-  appId: "1:488926593717:web:f904097e31326011b0f4fc"
-};
-
-const fb = initializeApp(firebaseConfig), auth = getAuth(fb), db = getFirestore(fb, "default");
-const $ = s => document.querySelector(s), app = $("#app");
-const EMOJIS = ["😀","😁","😂","🤣","😊","😍","😘","😎","🤩","🥳","😢","😭","😡","🤔","🙄","😴","🤗","😇","🥰","😜","🤪","😏","😬","😱","🤯","🥶","🥵","🤮","👍","👎","👏","🙌","🙏","💪","👀","💯","🔥","✨","⭐","🎉","🎂","❤️","🧡","💛","💚","💙","💜","🖤","💔","💕","😈","👻","💀","🤝","✌️","🤞","👋","🍕","🍔","🍟","🍿","🍩","☕","🎮","🎵","⚽","🌹","🌈","☀️","🌙"];
-const KEEP = {"0":"Keep forever","60000":"Don't store (1 min)","3600000":"1 hour","86400000":"24 hours","604800000":"7 days"};
-let me = null, unsub = null, timer = null;
-let keep = localStorage.getItem("keep") || "0";
-
-onAuthStateChanged(auth, async u => {
-  if (!u) { me = null; return authView(); }
-  const s = await getDoc(doc(db, "users", u.uid));
-  me = s.exists() ? { uid: u.uid, ...s.data() } : { uid: u.uid, username: "" };
-  if (s.exists() && s.data().keep) { keep = s.data().keep; localStorage.setItem("keep", keep); }
-  homeView();
+window.addEventListener("error",e=>{document.getElementById("app").innerHTML='<p style="padding:16px;color:#fda4af">Error: '+e.message+'</p>'});
+window.addEventListener("unhandledrejection",e=>{console.log(e.reason)});
+const sb=supabase.createClient("https://ogevzxqoypsroxsqiwhp.supabase.co","sb_publishable_YndHPg3FUb5_fsL2wX_yWw_FI3fUpxf");
+const $=s=>document.querySelector(s),app=$("#app");
+const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const EMO=Array.from("😀😁😂🤣😊😍😘😎🤩🥳😢😭😡🤔🙄😴🤗😇🥰😜🤪😏😬😱🤯🥶🥵🤮👍👎👏🙌🙏💪👀💯🔥🎉🎂💖🧡💛💚💙💜🖤💔💕😈👻💀🤝🍕🍔🍟🍿🍩🎮🎵🌹🌈");
+const KEEP={"0":"Keep forever","60000":"Don't store (1 min)","3600000":"1 hour","86400000":"24 hours","604800000":"7 days"};
+let me=null,prof=null,tab="chats",chan=null,tmr=null;
+function leave(){if(chan){sb.removeChannel(chan);chan=null}clearInterval(tmr)}
+sb.auth.onAuthStateChange(async(_e,s)=>{
+ if(!s){me=null;return authView()}
+ if(me&&me.id===s.user.id)return;
+ me=s.user;await loadProf();main();
 });
-
-function authView(msg = "") {
-  clear();
-  app.innerHTML = `<header><span>yuuuuv 💜</span></header><div class="pad">
-  <input id="u" placeholder="Username (new accounts)"><input id="e" type="email" placeholder="Email">
-  <input id="p" type="password" placeholder="Password (6+ characters)">
-  <div class="err">${msg}</div>
-  <button class="btn" id="in">Log in</button><button class="link" id="up">Create account</button></div>`;
-  $("#in").onclick = async () => { try { await signInWithEmailAndPassword(auth, $("#e").value, $("#p").value); } catch (e) { authView(e.message); } };
-  $("#up").onclick = async () => {
-    const name = $("#u").value.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
-    if (name.length < 3) return authView("Username needs 3+ letters/numbers");
-    try {
-      const taken = await getDocs(query(collection(db, "users"), where("username", "==", name)));
-      if (!taken.empty) return authView("Username taken");
-      const c = await createUserWithEmailAndPassword(auth, $("#e").value, $("#p").value);
-      await setDoc(doc(db, "users", c.user.uid), { username: name, keep });
-      me = { uid: c.user.uid, username: name }; homeView();
-    } catch (e) { authView(e.message); }
-  };
+async function loadProf(){
+ let {data}=await sb.from("profiles").select("*").eq("id",me.id).maybeSingle();
+ if(!data){const name=localStorage.getItem("pending")||("user"+Math.random().toString(36).slice(2,7));
+  const r=await sb.from("profiles").insert({id:me.id,username:name}).select().single();data=r.data}
+ prof=data||{id:me.id,username:"me",keep_ms:0};
 }
-
-async function homeView(msg = "") {
-  clear();
-  app.innerHTML = `<header><span>yuuuuv 💜</span><button id="set">⚙️</button><button id="out">Exit</button></header>
-  <div class="pad"><h3>Add a friend by username</h3>
-  <input id="f" placeholder="@username"><button class="btn" id="add">Add friend</button><div class="err" id="m">${msg}</div>
-  <h3>Your friends</h3><div id="list">Loading…</div></div>`;
-  $("#out").onclick = () => signOut(auth);
-  $("#set").onclick = settingsView;
-  $("#add").onclick = addFriend;
-  const fs = await getDocs(collection(db, "users", me.uid, "friends"));
-  $("#list").innerHTML = fs.empty ? "No friends yet 👋" : "";
-  fs.forEach(d => {
-    const r = document.createElement("div"); r.className = "row"; r.textContent = "💬 " + d.data().username;
-    r.onclick = () => chatView(d.id, d.data().username); $("#list").append(r);
+function authView(msg=""){
+ leave();
+ app.innerHTML=`<header><span>yuuuuv 💜</span></header><div class="pad"><input id="u" placeholder="Username (new accounts)"><input id="e" type="email" placeholder="Email"><input id="p" type="password" placeholder="Password (6+ characters)"><div class="err">${esc(msg)}</div><button class="btn" id="in">Log in</button><button class="link" id="up">Create account</button></div>`;
+ $("#in").onclick=async()=>{const {error}=await sb.auth.signInWithPassword({email:$("#e").value.trim(),password:$("#p").value});if(error)authView(error.message)};
+ $("#up").onclick=async()=>{
+  const name=$("#u").value.trim().toLowerCase().replace(/[^a-z0-9_]/g,"");
+  if(name.length<3)return authView("Username needs 3+ letters/numbers");
+  const {data:t}=await sb.from("profiles").select("id").eq("username",name);
+  if(t&&t.length)return authView("Username taken");
+  localStorage.setItem("pending",name);
+  const {data,error}=await sb.auth.signUp({email:$("#e").value.trim(),password:$("#p").value});
+  if(error)return authView(error.message);
+  if(!data.session)authView("Check your email to confirm, then log in.");
+ };
+}
+function main(){
+ leave();
+ app.innerHTML=`<div id="v" style="flex:1;display:flex;flex-direction:column;min-height:0"></div><nav>${[["chats","💬","Chats"],["snaps","📸","Snaps"],["glows","✨","Glows"],["find","🔍","Find"],["me","⚙️","You"]].map(([k,i,n])=>`<button data-t="${k}" class="${tab===k?"on":""}">${i}<small>${n}</small></button>`).join("")}</nav>`;
+ document.querySelectorAll("nav button").forEach(b=>b.onclick=()=>{tab=b.dataset.t;main()});
+ ({chats:chatsView,snaps:snapsView,glows:glowsView,find:findView,me:meView})[tab]();
+}
+async function friends(){
+ const {data}=await sb.from("friends").select("*").eq("status","accepted").or(`requester.eq.${me.id},addressee.eq.${me.id}`);
+ const ids=(data||[]).map(r=>r.requester===me.id?r.addressee:r.requester);
+ if(!ids.length)return[];
+ const {data:p}=await sb.from("profiles").select("id,username").in("id",ids);
+ return p||[];
+}
+function pick(cb,cam){const i=document.createElement("input");i.type="file";i.accept="image/*";if(cam)i.setAttribute("capture","environment");i.onchange=()=>i.files[0]&&cb(i.files[0]);i.click()}
+async function upload(f){
+ const path=`${me.id}/${Date.now()}_${Math.random().toString(36).slice(2,7)}.jpg`;
+ const {error}=await sb.storage.from("media").upload(path,f,{contentType:f.type});
+ if(error)throw error;
+ return sb.storage.from("media").getPublicUrl(path).data.publicUrl;
+}
+async function sendSnap(p){
+ pick(async f=>{try{const url=await upload(f);
+  await sb.from("messages").insert({sender:me.id,receiver:p.id,kind:"snap",media_url:url,body:"snap",expires_at:new Date(Date.now()+864e5).toISOString()});
+  alert("Snap sent to "+p.username+" 📸")}catch(e){alert(e.message)}},true);
+}
+async function chatsView(){
+ $("#v").innerHTML=`<header><span>Chats</span></header><div class="pad" id="l">Loading…</div>`;
+ const f=await friends();
+ $("#l").innerHTML=f.length?"":"No friends yet. Tap 🔍 Find to add some 👋";
+ f.forEach(p=>{const r=document.createElement("div");r.className="row";r.textContent="💬 "+p.username;r.onclick=()=>chatView(p);$("#l").append(r)});
+}
+async function snapsView(){
+ $("#v").innerHTML=`<header><span>Snaps 📸</span></header><div class="pad"><p style="opacity:.7;margin-bottom:10px">Tap 📸 to send a view-once snap. Open snaps inside the chat.</p><div id="l">Loading…</div></div>`;
+ const f=await friends();
+ $("#l").innerHTML=f.length?"":"Add friends first 👋";
+ f.forEach(p=>{const r=document.createElement("div");r.className="row";const s=document.createElement("span");s.textContent=p.username;const b=document.createElement("button");b.className="sm";b.textContent="📸 Snap";b.onclick=()=>sendSnap(p);r.append(s,b);$("#l").append(r)});
+}
+function chatView(p){
+ leave();
+ app.innerHTML=`<header><button id="b">←</button><span>${esc(p.username)}</span></header><div id="msgs"></div><div id="emo">${EMO.map(e=>`<span>${e}</span>`).join("")}</div><div id="bar"><button id="eb">😊</button><button id="cb">📷</button><input id="t" placeholder="Message…"><button id="s">➤</button></div>`;
+ $("#b").onclick=main;
+ $("#eb").onclick=()=>{const e=$("#emo");e.style.display=e.style.display==="flex"?"none":"flex"};
+ $("#emo").onclick=e=>{if(e.target.tagName==="SPAN")$("#t").value+=e.target.textContent};
+ $("#cb").onclick=()=>sendSnap(p);
+ const send=async()=>{const text=$("#t").value.trim();if(!text)return;$("#t").value="";
+  const k=+(prof.keep_ms||0);
+  await sb.from("messages").insert({sender:me.id,receiver:p.id,body:text,expires_at:k?new Date(Date.now()+k).toISOString():null})};
+ $("#s").onclick=send;$("#t").onkeydown=e=>{if(e.key==="Enter")send()};
+ const load=async()=>{
+  const {data}=await sb.from("messages").select("*").or(`and(sender.eq.${me.id},receiver.eq.${p.id}),and(sender.eq.${p.id},receiver.eq.${me.id})`).order("created_at");
+  const box=$("#msgs");if(!box)return;box.innerHTML="";
+  (data||[]).forEach(m=>{
+   if(m.expires_at&&new Date(m.expires_at)<new Date()){if(m.sender===me.id)sb.from("messages").delete().eq("id",m.id);return}
+   const mine=m.sender===me.id,el=document.createElement("div");el.className="m"+(mine?" me":"");
+   if(m.kind==="snap"){el.textContent=mine?"📸 Snap sent":"📸 Snap — tap to view";if(!mine){el.style.cursor="pointer";el.onclick=()=>viewSnap(m)}}
+   else el.textContent=m.body;
+   const s=document.createElement("small");s.textContent=new Date(m.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+   el.append(s);box.append(el);
   });
+  box.scrollTop=box.scrollHeight;
+ };
+ chan=sb.channel("m"+Date.now()).on("postgres_changes",{event:"*",schema:"public",table:"messages"},load).subscribe();
+ tmr=setInterval(load,15000);load();
 }
-
-async function addFriend() {
-  const name = $("#f").value.trim().toLowerCase().replace("@", "");
-  const r = await getDocs(query(collection(db, "users"), where("username", "==", name)));
-  if (r.empty) return homeView("User not found");
-  const f = r.docs[0];
-  if (f.id === me.uid) return homeView("That's you 😄");
-  await setDoc(doc(db, "users", me.uid, "friends", f.id), { username: f.data().username });
-  await setDoc(doc(db, "users", f.id, "friends", me.uid), { username: me.username });
-  homeView("Added " + f.data().username + " ✅");
+function viewSnap(m){
+ const o=document.createElement("div");o.id="ov";const i=document.createElement("img");i.src=m.media_url;o.append(i);document.body.append(o);
+ const close=()=>{o.remove();sb.from("messages").delete().eq("id",m.id)};
+ o.onclick=close;setTimeout(()=>o.isConnected&&close(),8000);
 }
-
-function settingsView() {
-  clear();
-  app.innerHTML = `<header><button id="b">←</button><span>Settings</span></header><div class="pad">
-  <h3>Save my messages for</h3><select id="k">${Object.entries(KEEP).map(([v, t]) => `<option value="${v}" ${v === keep ? "selected" : ""}>${t}</option>`).join("")}</select>
-  <p style="opacity:.7;font-size:14px">Messages you send disappear after this time.</p></div>`;
-  $("#b").onclick = () => homeView();
-  $("#k").onchange = async e => {
-    keep = e.target.value; localStorage.setItem("keep", keep);
-    await setDoc(doc(db, "users", me.uid), { username: me.username, keep });
-  };
+async function glowsView(){
+ $("#v").innerHTML=`<header><span>Glows ✨</span></header><div class="pad"><button class="btn" id="ag">＋ Add a Glow (lasts 24h)</button><div id="g">Loading…</div></div>`;
+ $("#ag").onclick=()=>pick(async f=>{try{const url=await upload(f);await sb.from("glows").insert({owner:me.id,media_url:url});glowsView()}catch(e){alert(e.message)}},false);
+ const {data}=await sb.from("glows").select("*,profiles(username)").order("created_at",{ascending:false});
+ $("#g").innerHTML=(data&&data.length)?"":"No Glows yet ✨";
+ (data||[]).forEach(g=>{
+  const c=document.createElement("div");c.className="card";
+  const t=document.createElement("b");t.textContent=(g.profiles&&g.profiles.username)||"friend";
+  const h=Math.max(0,Math.round((new Date(g.expires_at)-Date.now())/36e5));
+  const s=document.createElement("small");s.textContent="  · "+h+"h left";
+  const im=document.createElement("img");im.src=g.media_url;c.append(t,s,im);$("#g").append(c);
+ });
 }
-
-function chatView(fid, fname) {
-  clear();
-  const cid = [me.uid, fid].sort().join("_"), col = collection(db, "chats", cid, "messages");
-  app.innerHTML = `<header><button id="b">←</button><span>${fname}</span></header><div id="msgs"></div>
-  <div id="emo">${EMOJIS.map(e => `<span>${e}</span>`).join("")}</div>
-  <div id="bar"><button id="eb">😊</button><input id="t" placeholder="Message…"><button id="s">➤</button></div>`;
-  $("#b").onclick = () => homeView();
-  $("#eb").onclick = () => { const e = $("#emo"); e.style.display = e.style.display === "flex" ? "none" : "flex"; };
-  $("#emo").onclick = e => { if (e.target.tagName === "SPAN") $("#t").value += e.target.textContent; };
-  const send = async () => {
-    const text = $("#t").value.trim(); if (!text) return; $("#t").value = "";
-    const ttl = +keep;
-    await addDoc(col, { from: me.uid, text, ts: Date.now(), expireAt: ttl ? Date.now() + ttl : 0 });
-  };
-  $("#s").onclick = send; $("#t").onkeydown = e => { if (e.key === "Enter") send(); };
-  let docs = [];
-  const draw = () => {
-    const now = Date.now(), box = $("#msgs"); if (!box) return;
-    box.innerHTML = "";
-    docs.forEach(d => {
-      const m = d.data();
-      if (m.expireAt && m.expireAt < now) { if (m.from === me.uid) deleteDoc(d.ref); return; }
-      const el = document.createElement("div"); el.className = "m" + (m.from === me.uid ? " me" : "");
-      el.textContent = m.text;
-      const s = document.createElement("small"); s.textContent = new Date(m.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-      el.append(s); box.append(el);
-    });
-    box.scrollTop = box.scrollHeight;
-  };
-  unsub = onSnapshot(query(col, orderBy("ts")), snap => { docs = snap.docs; draw(); });
-  timer = setInterval(draw, 5000);
+async function findView(){
+ $("#v").innerHTML=`<header><span>Find friends</span></header><div class="pad"><input id="q" placeholder="Search username"><div id="r"></div><h3>Requests for you</h3><div id="rq">Loading…</div></div>`;
+ $("#q").oninput=async()=>{
+  const q=$("#q").value.trim().toLowerCase().replace(/[^a-z0-9_]/g,"");
+  if(q.length<2){$("#r").innerHTML="";return}
+  const {data}=await sb.from("profiles").select("id,username").ilike("username","%"+q+"%").neq("id",me.id).limit(10);
+  $("#r").innerHTML="";
+  (data||[]).forEach(p=>{
+   const r=document.createElement("div");r.className="row";const s=document.createElement("span");s.textContent=p.username;
+   const b=document.createElement("button");b.className="sm";b.textContent="Add";
+   b.onclick=async()=>{const {error}=await sb.from("friends").insert({requester:me.id,addressee:p.id});b.textContent=error?"Already":"Sent ✅"};
+   r.append(s,b);$("#r").append(r);
+  });
+ };
+ const {data}=await sb.from("friends").select("*").eq("addressee",me.id).eq("status","pending");
+ const ids=(data||[]).map(r=>r.requester);
+ $("#rq").innerHTML=ids.length?"":"No requests";
+ if(!ids.length)return;
+ const {data:ps}=await sb.from("profiles").select("id,username").in("id",ids);
+ (data||[]).forEach(fr=>{
+  const p=(ps||[]).find(x=>x.id===fr.requester);
+  const r=document.createElement("div");r.className="row";const s=document.createElement("span");s.textContent=p?p.username:"user";
+  const b=document.createElement("button");b.className="sm";b.textContent="Accept";
+  b.onclick=async()=>{await sb.from("friends").update({status:"accepted"}).eq("id",fr.id);findView()};
+  r.append(s,b);$("#rq").append(r);
+ });
 }
-
-function clear() { if (unsub) unsub(); unsub = null; clearInterval(timer); }
+function meView(){
+ $("#v").innerHTML=`<header><span>You</span></header><div class="pad"><h3>Username</h3><div class="row">@${esc(prof.username)}</div><h3>Save my messages for</h3><select id="k">${Object.entries(KEEP).map(([v,t])=>`<option value="${v}" ${String(prof.keep_ms||0)===v?"selected":""}>${t}</option>`).join("")}</select><button class="btn" id="lo">Log out</button></div>`;
+ $("#k").onchange=async e=>{prof.keep_ms=+e.target.value;await sb.from("profiles").update({keep_ms:prof.keep_ms}).eq("id",me.id)};
+ $("#lo").onclick=()=>sb.auth.signOut();
+}
 </script></body></html>
