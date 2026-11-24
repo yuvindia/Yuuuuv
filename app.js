@@ -2,7 +2,6 @@ window.__ok=1;
 const sb=supabase.createClient("https://ogevzxqoypsroxsqiwhp.supabase.co","sb_publishable_YndHPg3FUb5_fsL2wX_yWw_FI3fUpxf");
 const $=s=>document.querySelector(s),app=$("#app");
 const h=(t,a={},...k)=>{const e=document.createElement(t);for(const x in a){if(x==="class")e.className=a[x];else if(x==="value")e.value=a[x];else if(x.startsWith("on"))e[x]=a[x];else e.setAttribute(x,a[x])}k.flat().forEach(c=>{if(c!=null&&c!==false)e.append(c.nodeType?c:document.createTextNode(c))});return e};
-const fmt=n=>n>=1e6?(n/1e6).toFixed(1).replace(/\.0$/,"")+"M":n>=1e3?(n/1e3).toFixed(1).replace(/\.0$/,"")+"K":String(n);
 const applyTheme=()=>{document.documentElement.dataset.t=localStorage.getItem("theme")||"dark"};applyTheme();
 const EMO=Array.from("😀😁😂🤣😊😍😘😎🤩🥳😢😭😡🤔🙄😴🤗😇🥰😜🤪😏😬😱🤯🥶🥵🤮👍👎👏🙌🙏💪👀💯🔥🎉🎂💖💔💕😈👻💀🤝🍕🍔🍟🍿🍩🎮🎵🌹🌈");
 const KEEP={"0":"Keep forever","60000":"Don't store (1 min)","3600000":"1 hour","86400000":"24 hours","604800000":"7 days"};
@@ -201,7 +200,7 @@ async function profileView(uid,back){
  const followingList=await followingOf(uid);
  const toProfile=()=>profileView(uid,back);
  const stats=h("div",{class:"stats"},h("div",{},h("b",{},String(pc)),h("small",{},"Posts")),
-  h("div",{onclick:()=>own?followersOf(uid).then(l=>listView("Followers",l,toProfile)):alert("Followers list is private")},h("b",{},p.demo_followers!=null?fmt(p.demo_followers):String(fw)),h("small",{},p.demo_followers!=null?"Followers (demo)":"Followers")),
+  h("div",{onclick:()=>own?followersOf(uid).then(l=>listView("Followers",l,toProfile)):alert("Followers list is private")},h("b",{},String(fw)),h("small",{},"Followers")),
   h("div",{onclick:()=>listView("Following",followingList,toProfile)},h("b",{},String(fg)),h("small",{},"Following")));
  const body=h("div",{class:"pad"},h("div",{style:"display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px"},av(p,"big"),h("div",{style:"font-size:20px"},nameEl(p)),p.bio?h("div",{style:"color:var(--mut)"},p.bio):null),stats);
  if(own){
@@ -220,4 +219,6 @@ async function profileView(uid,back){
   profs(common).then(cp=>{const d=h("div",{style:"color:var(--mut);font-size:14px;margin:6px 0"},cp.length?"Mutual friends: "+cp.map(x=>x.username).join(", "):"No mutual friends");btn.after(d)});
  }
  body.append(h("h3",{},"Posts"));
- body.append((posts&&posts.length)?h("div",{class:"grid"},...posts.map(x=>h("img",{src:x.media_url,onclick:()=>{const o=h("div",{id:"ov"},h("img",{src:x.media_url}));o.oncli
+ body.append((posts&&posts.length)?h("div",{class:"grid"},...posts.map(x=>h("img",{src:x.media_url,onclick:()=>{const o=h("div",{id:"ov"},h("img",{src:x.media_url}));o.onclick=()=>o.remove();document.body.append(o)}}))):h("div",{style:"color:var(--mut)"},"No posts yet"));
+ show(h("header",{},back?h("button",{onclick:back},"←"):null,h("span",{},"@"+p.username)),body);
+                     }
