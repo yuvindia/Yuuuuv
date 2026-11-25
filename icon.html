@@ -1,0 +1,14 @@
+<!DOCTYPE html><html><body style="margin:0;background:#222;color:#fff;font-family:sans-serif;text-align:center;padding:16px">
+<p>Long-press each image, then tap <b>Download image</b>.</p>
+<div id="o"></div>
+<script>
+[512,192].forEach(function(n){
+ var c=document.createElement("canvas");c.width=c.height=n;var x=c.getContext("2d");
+ x.fillStyle="#000";x.fillRect(0,0,n,n);
+ x.fillStyle="#fff";x.font="bold "+(n*0.62)+"px system-ui,sans-serif";x.textAlign="center";x.textBaseline="middle";
+ x.fillText("y",n/2,n*0.47);
+ var i=new Image();i.src=c.toDataURL("image/png");i.style.cssText="width:"+(n>300?240:192)+"px;margin:12px;border-radius:24px";
+ var l=document.createElement("div");l.textContent="icon-"+n+".png";
+ document.getElementById("o").append(l,i);
+});
+</script></body></html>
