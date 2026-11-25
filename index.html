@@ -76,9 +76,11 @@ nav button.on{opacity:1}
 <body><div id="app">Loading…</div>
 <script>
 window.addEventListener("error",function(e){var a=document.getElementById("app");if(a&&a.textContent==="Loading…")a.textContent="Error: "+(e.message||("could not load "+(e.target&&e.target.src)))},true);
-setTimeout(function(){var a=document.getElementById("app");if(a&&a.textContent==="Loading…"&&!window.__ok)a.textContent="app.js did not start. Check that app.js exists in the repository and was pasted fully."},8000);
+setTimeout(function(){var a=document.getElementById("app");if(a&&a.textContent==="Loading…"&&!window.__ok)a.textContent="app1.js did not start. Check that app1.js to app4.js all exist in the repository."},8000);
 setTimeout(function(){var a=document.getElementById("app");if(a&&a.textContent==="Loading…"&&window.__ok)a.textContent="App started but cannot reach Supabase. Open supabase.com and tap Restore project if it is paused."},12000);
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=1"></script>
+<script>
+(function(){var f=["app1.js","app2.js","app3.js","app4.js"],v=Date.now();f.forEach(function(n){var s=document.createElement("script");s.src=n+"?v="+v;s.async=false;document.body.appendChild(s)})})();
+</script>
 </body></html>
