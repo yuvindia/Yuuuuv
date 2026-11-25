@@ -3,6 +3,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>yuuuuv</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
 <style>
 :root{--bg:#000;--card:#121212;--line:#262626;--tx:#fff;--mut:#8e8e8e}
 :root[data-t=light]{--bg:#fff;--card:#f4f4f4;--line:#e3e3e3;--tx:#000;--mut:#6b6b6b}
@@ -83,4 +85,5 @@ setTimeout(function(){var a=document.getElementById("app");if(a&&a.textContent==
 <script>
 (function(){var f=["app1.js","app2.js","app3.js","app4.js"],v=Date.now();f.forEach(function(n){var s=document.createElement("script");s.src=n+"?v="+v;s.async=false;document.body.appendChild(s)})})();
 </script>
+<script>if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js")</script>
 </body></html>
