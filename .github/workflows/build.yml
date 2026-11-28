@@ -12,8 +12,20 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+      - run: sudo apt-get update && sudo apt-get install -y imagemagick
       - run: npm install
       - run: npx cap add android
+      - name: App icon
+        run: |
+          R=android/app/src/main/res
+          for d in mdpi:48:108 hdpi:72:162 xhdpi:96:216 xxhdpi:144:324 xxxhdpi:192:432; do
+            IFS=: read n s f <<< "$d"
+            convert icon-512.png -resize ${s}x${s} $R/mipmap-$n/ic_launcher.png
+            cp $R/mipmap-$n/ic_launcher.png $R/mipmap-$n/ic_launcher_round.png
+            g=$((f*66/100))
+            convert icon-512.png -resize ${g}x${g} -background black -gravity center -extent ${f}x${f} $R/mipmap-$n/ic_launcher_foreground.png
+          done
+          echo '<?xml version="1.0" encoding="utf-8"?><resources><color name="ic_launcher_background">#000000</color></resources>' > $R/values/ic_launcher_background.xml
       - run: sed -i 's#</manifest>#<uses-permission android:name="android.permission.CAMERA"/></manifest>#' android/app/src/main/AndroidManifest.xml
       - run: npx cap sync android
       - run: cd android && chmod +x gradlew && ./gradlew assembleDebug
